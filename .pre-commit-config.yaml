@@ -1,0 +1,30 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-json
+      - id: check-yaml
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: typecheck
+        name: typecheck
+        entry: bunx tsc
+        language: system
+        files: \.ts$
+        pass_filenames: false
+
+      - id: eslint
+        name: eslint
+        entry: bunx eslint
+        language: system
+        files: \.ts$
+
+      - id: prettier
+        name: prettier
+        entry: bunx prettier --check
+        language: system
+        types_or: [ts, json, markdown, yaml]
