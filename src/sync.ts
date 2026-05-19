@@ -1,5 +1,6 @@
 import type { IList } from './types.ts';
-import { SNAPSHOT_KEY, SYNCED_LIST_NAMES } from './constants.ts';
+import { SNAPSHOT_KEY } from './constants.ts';
+import type { GistRegistry } from './storage.ts';
 
 export function debounce<T extends unknown[]>(
   fn: (...args: T) => Promise<void> | void,
@@ -14,10 +15,10 @@ export function debounce<T extends unknown[]>(
   };
 }
 
-export function getSyncableLists(lists: IList[]): IList[] {
-  return lists.filter(
-    l => (l.url === undefined || l.url === '') && SYNCED_LIST_NAMES.includes(l.name),
-  );
+export function getSyncableFromRegistry(all: IList[], registry: GistRegistry): IList[] {
+  return Object.values(registry)
+    .map(localId => all.find(l => l.id === localId))
+    .filter((l): l is IList => l !== undefined);
 }
 
 export function getSnapshot(lists: IList[]): string {
