@@ -1,0 +1,23 @@
+{
+  "name": "psnpp-gist",
+  "version": "0.1.0",
+  "description": "Sync PSNP+ game lists with GitHub Gist",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun run build.ts",
+    "typecheck": "bunx tsc --noEmit",
+    "lint": "bunx eslint src/",
+    "format": "bunx prettier --write .",
+    "check": "bun run typecheck && bun run lint"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "^1.3.14",
+    "eslint": "^10.4.0",
+    "typescript-eslint": "^8.59.4"
+  },
+  "peerDependencies": {
+    "typescript": "^6.0.3"
+  }
+}
