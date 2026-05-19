@@ -1,7 +1,7 @@
 {
   "name": "psnpp-gist",
   "version": "0.1.0",
-  "description": "Sync PSNP+ game lists with GitHub Gist",
+  "description": "Sync PSNP+ game lists with GitHub Gist.",
   "private": true,
   "type": "module",
   "scripts": {
