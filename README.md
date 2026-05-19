@@ -8,7 +8,7 @@
 ## Install
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/)
-2. **[Click here to install the script!](https://github.com/MihaiStreames/psnpp-gist/releases/latest/download/psnpp-gist-sync.user.js)**
+2. **[Click here to install the script](https://github.com/MihaiStreames/psnpp-gist/releases/latest/download/psnpp-gist-sync.user.js)**
 3. Confirm the install prompt
 
 ## Setup
@@ -47,7 +47,7 @@ Synced lists get a ☁ suffix in the dropdown:
 
 ![Dropdown with cloud icon](assets/dropdown-icon.png)
 
-Changes push automatically after you save. On page load, the script pulls the latest from your Gist - so opening PSNProfiles on a different browser just works _(provided the script is running)_!
+Changes push automatically after you save. On page load, the script pulls the latest from your Gist - so opening PSNProfiles on a different browser just works _(provided the script is running)!_
 
 ## Bugs
 
