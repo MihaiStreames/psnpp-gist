@@ -8,6 +8,11 @@ export interface GistConfig {
   gistId: string;
 }
 
+export type GistConfigState =
+  | { status: 'none' }
+  | { status: 'partial'; message: string }
+  | { status: 'ok'; config: GistConfig };
+
 export function getListsFromStorage(): IList[] {
   const raw = localStorage.getItem(LISTS_KEY);
   if (raw === null) return [];
@@ -78,16 +83,25 @@ export function applyPulledLists(pulled: IList[], registry: GistRegistry): void 
   if (changed) localStorage.setItem(LISTS_KEY, JSON.stringify(all));
 }
 
-export function loadGistConfig(): GistConfig | null {
+export function loadGistConfigState(): GistConfigState {
   const raw = localStorage.getItem(SETTINGS_KEY);
-  if (raw === null) return null;
-
-  const s = JSON.parse(raw) as { gistToken?: string; gistId?: string };
+  const s = raw !== null ? (JSON.parse(raw) as { gistToken?: string; gistId?: string }) : {};
   const token = s.gistToken ?? '';
   const gistId = s.gistId ?? '';
-  if (token === '' || gistId === '') return null;
 
-  return { token, gistId };
+  if (token === '' && gistId === '') {
+    return { status: 'none' };
+  }
+
+  if (token === '') {
+    return { status: 'partial', message: 'GitHub PAT is missing from Gist Sync settings.' };
+  }
+
+  if (gistId === '') {
+    return { status: 'partial', message: 'Gist ID is missing from Gist Sync settings.' };
+  }
+
+  return { status: 'ok', config: { token, gistId } };
 }
 
 const transforms: Array<[string, (v: string) => string]> = [];

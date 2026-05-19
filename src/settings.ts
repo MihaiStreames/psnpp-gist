@@ -21,10 +21,6 @@ function readGistSettings(): GistSettings {
   };
 }
 
-export function loadSyncedListNames(): string[] {
-  return readGistSettings().gistSyncedLists;
-}
-
 function makeInput(value: string, validate?: (v: string) => boolean): HTMLInputElement {
   const input = document.createElement('input');
   input.type = 'text';
@@ -56,7 +52,6 @@ function buildSection(): { el: HTMLElement; read: () => GistSettings } {
 
   return {
     el: section,
-
     read: () => ({
       gistToken: tokenInput.value.trim(),
       gistId: idInput.value.trim(),
@@ -66,6 +61,10 @@ function buildSection(): { el: HTMLElement; read: () => GistSettings } {
         .filter(n => n !== ''),
     }),
   };
+}
+
+export function loadSyncedListNames(): string[] {
+  return readGistSettings().gistSyncedLists;
 }
 
 export function setupSettings(): void {
