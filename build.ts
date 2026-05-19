@@ -7,12 +7,9 @@ const HEADER = `// ==UserScript==
 // @description  ${pkg.description}
 // @author       MihaiStreames
 // @match        https://psnprofiles.com/*
+// @grant        unsafeWindow
 // @grant        GM_xmlhttpRequest
-// @grant        GM.getValue
-// @grant        GM.setValue
-// @grant        GM.deleteValue
-// @run-at       document-start
-// @inject-into  page
+// @run-at       document-idle
 // ==/UserScript==`;
 
 const result = await Bun.build({
