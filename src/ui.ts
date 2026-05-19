@@ -27,13 +27,6 @@ export function waitForElement(selector: string, timeout = 5000): Promise<Elemen
   });
 }
 
-function faIcon(classes: string): HTMLElement {
-  const i = document.createElement('i');
-  i.className = `fa ${classes}`;
-  i.setAttribute('aria-hidden', 'true');
-  return i;
-}
-
 export function markGistLists(registry: GistRegistry): void {
   const registeredIds = new Set(Object.values(registry));
   const select = document.querySelector<HTMLSelectElement>('label.select select');
@@ -44,6 +37,13 @@ export function markGistLists(registry: GistRegistry): void {
       option.text = `${option.text} ☁`;
     }
   }
+}
+
+function faIcon(classes: string): HTMLElement {
+  const i = document.createElement('i');
+  i.className = `fa ${classes}`;
+  i.setAttribute('aria-hidden', 'true');
+  return i;
 }
 
 export function injectStatusIndicator(): (status: SyncStatus, detail?: string) => void {

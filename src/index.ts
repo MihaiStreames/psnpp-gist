@@ -5,7 +5,7 @@ import {
   applyPulledLists,
   ensureRegistered,
   getListsFromStorage,
-  loadGistConfig,
+  loadGistConfigState,
   onStorageEffect,
   onStorageRemove,
   updateRegistry,
@@ -17,11 +17,12 @@ import type { SyncStatus } from './ui.ts';
 
 const registry = ensureRegistered(loadSyncedListNames());
 
-const config: GistConfig | null = loadGistConfig();
+const configState = loadGistConfigState();
+const config: GistConfig | null = configState.status === 'ok' ? configState.config : null;
 
 const trackedNames = Object.keys(registry);
 console.log(
-  `[psnpp-gist] init | config: ${config !== null ? 'ok' : 'not set'} | tracking: ${trackedNames.length > 0 ? trackedNames.join(', ') : 'none'}`,
+  `[psnpp-gist] init | config: ${configState.status} | tracking: ${trackedNames.length > 0 ? trackedNames.join(', ') : 'none'}`,
 );
 
 // no-op until injectStatusIndicator() runs on the game lists page
@@ -33,6 +34,8 @@ const debouncedSync = debounce(async () => {
   if (config === null) return;
 
   const syncable = getSyncableFromRegistry(getListsFromStorage(), registry);
+  if (syncable.length === 0) return;
+
   const snapshot = getSnapshot(syncable);
   if (!isDirty(snapshot)) return;
 
@@ -79,21 +82,23 @@ async function initGameListsPage(): Promise<void> {
     return; // not on game lists page
   }
 
-  updateStatus = injectStatusIndicator();
-  markGistLists(registry);
+  if (configState.status === 'none') return;
 
-  if (config === null) {
-    updateStatus(
-      'error',
-      'Gist not configured! Please set your GitHub PAT and Gist ID in PSNP+ settings.',
-    );
+  if (configState.status === 'partial') {
+    updateStatus = injectStatusIndicator();
+    updateStatus('error', configState.message);
     return;
   }
+
+  if (Object.keys(registry).length === 0) return;
+
+  updateStatus = injectStatusIndicator();
+  markGistLists(registry);
 
   try {
     updateStatus('syncing');
 
-    const pulled = await pullLists(config.gistId, config.token);
+    const pulled = await pullLists(configState.config.gistId, configState.config.token);
     const pulledSnapshot = getSnapshot(pulled);
     if (isDirty(pulledSnapshot)) {
       console.log('[psnpp-gist] pulling from Gist...');
