@@ -1,6 +1,5 @@
 import type { IList } from './types.ts';
-
-const LISTS_KEY = 'psnpp-lists';
+import { LISTS_KEY } from './constants.ts';
 
 export function getListsFromStorage(): IList[] {
   const raw = localStorage.getItem(LISTS_KEY);

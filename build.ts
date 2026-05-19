@@ -5,7 +5,7 @@ const HEADER = `// ==UserScript==
 // @namespace    psnp.plus.gist
 // @version      ${pkg.version}
 // @description  ${pkg.description}
-// @author       Sincos
+// @author       MihaiStreames
 // @match        https://psnprofiles.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM.getValue
