@@ -6,9 +6,14 @@ const HEADER = `// ==UserScript==
 // @version      ${pkg.version}
 // @description  ${pkg.description}
 // @author       MihaiStreames
+// @homepageURL  https://github.com/MihaiStreames/psnpp-gist
+// @supportURL   https://github.com/MihaiStreames/psnpp-gist/issues
+// @updateURL    https://github.com/MihaiStreames/psnpp-gist/releases/latest/download/psnpp-gist-sync.meta.js
+// @downloadURL  https://github.com/MihaiStreames/psnpp-gist/releases/latest/download/psnpp-gist-sync.user.js
 // @match        https://psnprofiles.com/*
 // @grant        unsafeWindow
 // @grant        GM_xmlhttpRequest
+// @connect      api.github.com
 // @run-at       document-idle
 // ==/UserScript==`;
 
@@ -27,7 +32,11 @@ if (!result.success) {
   process.exit(1);
 }
 
-const outputFile = 'dist/psnpp-gist-sync.user.js';
-const built = await Bun.file(outputFile).text();
-await Bun.write(outputFile, HEADER + '\n' + built);
-console.log('Built:', outputFile);
+const userJs = 'dist/psnpp-gist-sync.user.js';
+const metaJs = 'dist/psnpp-gist-sync.meta.js';
+
+const built = await Bun.file(userJs).text();
+await Bun.write(userJs, HEADER + '\n' + built);
+await Bun.write(metaJs, HEADER + '\n');
+
+console.log('Built:', userJs, metaJs);
