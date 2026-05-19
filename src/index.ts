@@ -98,20 +98,37 @@ async function initGameListsPage(): Promise<void> {
   try {
     updateStatus('syncing');
 
-    const pulled = await pullLists(configState.config.gistId, configState.config.token);
-    const pulledSnapshot = getSnapshot(pulled);
-    if (isDirty(pulledSnapshot)) {
-      console.log('[psnpp-gist] pulling from Gist...');
+    const { lists: pulled, scopeWarning } = await pullLists(
+      configState.config.gistId,
+      configState.config.token,
+    );
 
-      suppressSync = true;
-      applyPulledLists(pulled, registry);
-      suppressSync = false;
-
-      markSynced(pulledSnapshot);
-      console.log('[psnpp-gist] pulled');
+    if (scopeWarning !== null) {
+      console.warn('[psnpp-gist] scope warning:', scopeWarning);
     }
 
-    updateStatus('synced');
+    if (pulled === null) {
+      // first use: psnpp-lists.json doesn't exist in the Gist yet
+      console.log('[psnpp-gist] initial push...');
+      const syncable = getSyncableFromRegistry(getListsFromStorage(), registry);
+      await pushLists(syncable, configState.config.gistId, configState.config.token);
+      markSynced(getSnapshot(syncable));
+      console.log('[psnpp-gist] initial push done');
+    } else {
+      const pulledSnapshot = getSnapshot(pulled);
+      if (isDirty(pulledSnapshot)) {
+        console.log('[psnpp-gist] pulling from Gist...');
+
+        suppressSync = true;
+        applyPulledLists(pulled, registry);
+        suppressSync = false;
+
+        markSynced(pulledSnapshot);
+        console.log('[psnpp-gist] pulled');
+      }
+    }
+
+    updateStatus('synced', scopeWarning ?? undefined);
   } catch (e) {
     console.warn('[psnpp-gist] pull failed:', e);
     updateStatus('error', String(e));

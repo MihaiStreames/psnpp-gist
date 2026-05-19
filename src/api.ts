@@ -3,7 +3,27 @@ import type { IList } from './types.ts';
 const GIST_API = 'https://api.github.com/gists';
 const FILENAME = 'psnpp-lists.json';
 
-export function pullLists(gistId: string, token: string): Promise<IList[]> {
+export interface PullResult {
+  lists: IList[] | null; // null = file absent (first use)
+  scopeWarning: string | null;
+}
+
+function parseResponseHeader(headers: string, name: string): string {
+  const lower = name.toLowerCase();
+
+  for (const line of headers.split('\r\n')) {
+    const colon = line.indexOf(':');
+    if (colon === -1) continue;
+
+    if (line.slice(0, colon).toLowerCase().trim() === lower) {
+      return line.slice(colon + 1).trim();
+    }
+  }
+
+  return '';
+}
+
+export function pullLists(gistId: string, token: string): Promise<PullResult> {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
       method: 'GET',
@@ -16,16 +36,34 @@ export function pullLists(gistId: string, token: string): Promise<IList[]> {
           return;
         }
 
+        // classic PATs expose scopes; fine-grained PATs return an empty header
+        const scopeHeader = parseResponseHeader(res.responseHeaders, 'x-oauth-scopes');
+        const scopes = scopeHeader
+          .split(',')
+          .map(s => s.trim())
+          .filter(s => s !== '');
+        const unnecessary = scopes.filter(s => s !== 'gist');
+        const scopeWarning =
+          unnecessary.length > 0
+            ? `Token has extra scopes: ${unnecessary.join(', ')}. Consider a gist-only PAT.`
+            : null;
+
         const gist = JSON.parse(res.responseText) as {
           files: Record<string, { content: string }>;
         };
         const file = gist.files[FILENAME];
         if (file === undefined) {
-          reject(new Error(`File "${FILENAME}" not found in Gist`));
+          resolve({ lists: null, scopeWarning });
           return;
         }
 
-        resolve(JSON.parse(file.content) as IList[]);
+        const lists = JSON.parse(file.content) as unknown;
+        if (!Array.isArray(lists)) {
+          reject(new Error('Gist data is not an array'));
+          return;
+        }
+
+        resolve({ lists: lists as IList[], scopeWarning });
       },
 
       onerror: () => {

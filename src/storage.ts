@@ -118,9 +118,27 @@ function patchSetItem(): void {
   const original = Storage.prototype.setItem;
 
   Storage.prototype.setItem = function (key: string, value: string): void {
-    for (const [k, fn] of transforms) if (k === key) value = fn(value);
+    for (const [k, fn] of transforms) {
+      if (k === key) {
+        try {
+          value = fn(value);
+        } catch (e) {
+          console.warn('[psnpp-gist] transform error:', e);
+        }
+      }
+    }
+
     original.call(this, key, value);
-    for (const [k, fn] of effects) if (k === key) fn();
+
+    for (const [k, fn] of effects) {
+      if (k === key) {
+        try {
+          fn();
+        } catch (e) {
+          console.warn('[psnpp-gist] effect error:', e);
+        }
+      }
+    }
   };
 }
 
@@ -133,7 +151,16 @@ function patchRemoveItem(): void {
 
   Storage.prototype.removeItem = function (key: string): void {
     original.call(this, key);
-    for (const [k, fn] of removeEffects) if (k === key) fn();
+
+    for (const [k, fn] of removeEffects) {
+      if (k === key) {
+        try {
+          fn();
+        } catch (e) {
+          console.warn('[psnpp-gist] remove effect error:', e);
+        }
+      }
+    }
   };
 }
 
