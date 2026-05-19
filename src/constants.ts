@@ -1,5 +1,6 @@
 export const LISTS_KEY = 'psnpp-lists';
 export const SNAPSHOT_KEY = 'psnpp-gist-snapshot';
+export const REGISTRY_KEY = 'psnpp-gist-registry';
 
 // TODO: replace with GM storage -> settings UI
 export const DEV_TOKEN = '';
