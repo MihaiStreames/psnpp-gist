@@ -28,6 +28,8 @@ jobs:
       - run: bun run build
       - name: Extract release notes
         run: bash .github/workflows/scripts/extract-changelog.sh "$TAG" > release_notes.md
+      - name: Generate checksums
+        run: bash .github/workflows/scripts/checksum.sh dist/psnpp-gist-sync.user.js dist/psnpp-gist-sync.meta.js
       - uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           body_path: release_notes.md
@@ -35,3 +37,5 @@ jobs:
           files: |
             dist/psnpp-gist-sync.user.js
             dist/psnpp-gist-sync.meta.js
+            dist/psnpp-gist-sync.user.js.sha256
+            dist/psnpp-gist-sync.meta.js.sha256

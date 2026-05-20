@@ -7,9 +7,19 @@
 
 ## Install
 
+> [!NOTE]
+> [PSNP+](https://psnp-plus.huskycode.dev/) must be installed first.
+
 1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/)
 2. **[Click here to install the script](https://github.com/MihaiStreames/psnpp-gist/releases/latest/download/psnpp-gist-sync.user.js)**
 3. Confirm the install prompt
+
+> **GitHub Releases is the only official source.** Each release includes a `.sha256` file. Verify it matches before trusting the script:
+>
+> ```sh
+> sha256sum psnpp-gist-sync.user.js
+> cat psnpp-gist-sync.user.js.sha256
+> ```
 
 ## Setup
 
@@ -61,6 +71,4 @@ Built on top of [PSNP+](https://psnp-plus.huskycode.dev/) by [huskydev](https://
 
 MIT. See [LICENSE](LICENSE).
 
-<div align="center">
-  Made with ❤️
-</div>
+Made with ❤️
