@@ -1,3 +1,5 @@
+fail_fast: true
+
 repos:
   - repo: builtin
     hooks:
@@ -6,11 +8,29 @@ repos:
       - id: check-yaml
       - id: mixed-line-ending
         args: [--fix=lf]
+        priority: 0
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: check-added-large-files
+        priority: 1
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.25.2
+    hooks:
+      - id: zizmor
+        priority: 0
+
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.8.3
+    hooks:
+      - id: prettier
+        additional_dependencies:
+          - prettier@3.8.3
+          - prettier-plugin-packagejson@3.0.2
+        types_or: [ts, json, markdown, yaml]
+        priority: 0
 
   - repo: local
     hooks:
@@ -20,15 +40,11 @@ repos:
         language: system
         files: \.ts$
         pass_filenames: false
+        priority: 0
 
       - id: eslint
         name: eslint
         entry: bunx eslint
         language: system
         files: \.ts$
-
-      - id: prettier
-        name: prettier
-        entry: bunx prettier --check
-        language: system
-        types_or: [ts, json, markdown, yaml]
+        priority: 0

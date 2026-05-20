@@ -4,15 +4,5 @@
   "trailingComma": "all",
   "bracketSpacing": true,
   "arrowParens": "avoid",
-  "htmlWhitespaceSensitivity": "ignore",
-  "plugins": ["@prettier/plugin-xml", "prettier-plugin-packagejson"],
-  "overrides": [
-    {
-      "files": "*.svg",
-      "options": {
-        "parser": "xml",
-        "xmlSelfClosingSpace": false
-      }
-    }
-  ]
+  "htmlWhitespaceSensitivity": "ignore"
 }

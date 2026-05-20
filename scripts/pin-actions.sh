@@ -23,17 +23,9 @@ cd "$(dirname "$0")/.."
 if [[ "$CHECK" == true ]]; then
   echo "Checking action pins..."
   pinact run --check
-
-  echo "Auditing workflows with zizmor..."
-  zizmor .github/workflows/ --pedantic
-
-  echo "All checks passed"
 else
   echo "Pinning actions to latest SHAs..."
   pinact run
-
-  echo "Fixing workflows with zizmor..."
-  zizmor .github/workflows/ --fix=all --pedantic
-
-  echo "Done"
 fi
+
+echo "Done"
