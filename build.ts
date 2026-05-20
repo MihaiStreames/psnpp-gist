@@ -5,6 +5,7 @@ const HEADER = `// ==UserScript==
 // @namespace    psnp.plus.gist
 // @version      ${pkg.version}
 // @description  ${pkg.description}
+// @icon         https://raw.githubusercontent.com/MihaiStreames/psnpp-gist/master/assets/icon.png
 // @author       MihaiStreames
 // @homepageURL  https://github.com/MihaiStreames/psnpp-gist
 // @supportURL   https://github.com/MihaiStreames/psnpp-gist/issues
