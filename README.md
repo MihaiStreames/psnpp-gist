@@ -7,13 +7,14 @@
 
 ## Install
 
-> [!NOTE]
+> [!IMPORTANT]
 > [PSNP+](https://psnp-plus.huskycode.dev/) must be installed first.
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/)
 2. **[Click here to install the script](https://github.com/MihaiStreames/psnpp-gist/releases/latest/download/psnpp-gist-sync.user.js)**
 3. Confirm the install prompt
 
+> [!WARNING]
 > **GitHub Releases is the only official source.** Each release includes a `.sha256` file. Verify it matches before trusting the script:
 >
 > ```sh
@@ -31,7 +32,7 @@ Create a new **secret** Gist at [gist.github.com](https://gist.github.com). The 
 
 ### 2. Create a personal access token
 
-GitHub -> Settings -> Developer settings -> Personal access tokens -> Tokens (classic) -> Generate new token. **Enable only the `gist` scope.** Copy it.
+GitHub -> Settings -> Developer settings -> Personal access tokens -> Tokens (classic) -> Generate new token -> Generate new token (classic). **Enable only the `gist` scope.** Copy it.
 
 ### 3. Configure the script
 
