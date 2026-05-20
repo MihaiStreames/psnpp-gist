@@ -9,6 +9,7 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - dependencies
+      - ts
     commit-message:
       prefix: 'chore(deps)'
 

@@ -5,7 +5,7 @@ usage() {
   echo "Usage: $(basename "$0") [-a|--all] [-h|--help]"
   echo ""
   echo "Options:"
-  echo "  -a, --all   also remove dist/ and node_modules/"
+  echo "  -a, --all   remove dist and node_modules"
   echo "  -h, --help  show this message"
 }
 

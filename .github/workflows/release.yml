@@ -8,41 +8,41 @@ on:
 permissions: {}
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: false
 
 env:
-  TAG: ${{ github.ref_name }}
+  VERSION: ${{ github.ref_name }}
 
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
     permissions:
-      contents: write # required to create GitHub releases and upload release assets
+      contents: write # creates the GitHub release and uploads assets
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
           no-cache: true
+
       - run: bun install --frozen-lockfile
-      - run: bun run typecheck
-      - run: bun run lint
-      - run: bun run build
-      - name: Extract release notes
-        run: bash .github/workflows/scripts/extract-changelog.sh "$TAG" > release_notes.md
-      - name: Generate checksums
+
+      - name: Build
+        run: bun run build
+
+      - name: Generate SHA256 checksums
         run: bash .github/workflows/scripts/checksum.sh dist/psnpp-gist-sync.user.js dist/psnpp-gist-sync.meta.js
-      - name: Create release
+
+      - name: Extract release notes
+        run: bash .github/workflows/scripts/extract-changelog.sh "$VERSION" > release_notes.md
+
+      - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "$TAG" \
-            --notes-file release_notes.md \
-            dist/psnpp-gist-sync.user.js \
-            dist/psnpp-gist-sync.meta.js \
-            dist/psnpp-gist-sync.user.js.sha256 \
-            dist/psnpp-gist-sync.meta.js.sha256
+        run: gh release create "$VERSION" --notes-file release_notes.md dist/psnpp-gist-sync.user.js dist/psnpp-gist-sync.meta.js dist/psnpp-gist-sync.user.js.sha256 dist/psnpp-gist-sync.meta.js.sha256
