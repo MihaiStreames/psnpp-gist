@@ -26,9 +26,9 @@
 
 You need a GitHub account. **GitHub Gist is the only storage option for now.**
 
-### 1. Create a secret Gist
+### 1. Get a Gist ID
 
-Create a new **secret** Gist at [gist.github.com](https://gist.github.com). The ID is the long hash at the end of the URL, after your username.
+Create a new (preferably **secret**) Gist at [gist.github.com](https://gist.github.com), or reuse an existing one. The ID is the long hash at the end of the URL, after your username.
 
 ### 2. Create a personal access token
 
@@ -60,9 +60,11 @@ Synced lists get a ☁ suffix in the dropdown:
 
 Changes push automatically after you save. On page load, the script pulls the latest from your Gist - so opening PSNProfiles on a different browser just works _(provided the script is running)!_
 
+Sync activity is logged to the browser console under the `[psnpp-gist]` prefix. Useful for confirming pushes and pulls are happening.
+
 ## Bugs
 
-Found a bug? Open an issue on [GitHub](https://github.com/MihaiStreames/psnpp-gist/issues)!
+Found a bug? Open an issue on [GitHub](https://github.com/MihaiStreames/psnpp-gist/issues)! Including any `[psnpp-gist]` errors from the browser console will help me fix it faster.
 
 ## Acknowledgments
 
@@ -72,4 +74,6 @@ Built on top of [PSNP+](https://psnp-plus.huskycode.dev/) by [huskydev](https://
 
 MIT. See [LICENSE](LICENSE).
 
-Made with ❤️
+<div align="center">
+  Made with ❤️
+</div>

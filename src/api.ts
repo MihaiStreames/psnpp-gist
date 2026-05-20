@@ -32,7 +32,9 @@ export function pullLists(gistId: string, token: string): Promise<PullResult> {
 
       onload: (res: Tampermonkey.Response<never>) => {
         if (res.status !== 200) {
-          reject(new Error(`Gist pull failed: ${res.status}`));
+          reject(
+            new Error(`Couldn't reach your Gist (${res.status}). Check your Gist ID and token.`),
+          );
           return;
         }
 
@@ -59,7 +61,9 @@ export function pullLists(gistId: string, token: string): Promise<PullResult> {
 
         const lists = JSON.parse(file.content) as unknown;
         if (!Array.isArray(lists)) {
-          reject(new Error('Gist data is not an array'));
+          reject(
+            new Error('Gist data looks corrupted. Try pushing again or check your Gist manually.'),
+          );
           return;
         }
 
@@ -67,7 +71,7 @@ export function pullLists(gistId: string, token: string): Promise<PullResult> {
       },
 
       onerror: () => {
-        reject(new Error('Gist pull network error'));
+        reject(new Error('Network error while reaching GitHub. Check your connection.'));
       },
     });
   });
@@ -89,11 +93,15 @@ export function pushLists(lists: IList[], gistId: string, token: string): Promis
 
       onload: (res: Tampermonkey.Response<never>) => {
         if (res.status === 200) resolve();
-        else reject(new Error(`Gist push failed: ${res.status}`));
+        else {
+          reject(
+            new Error(`Couldn't save to your Gist (${res.status}). Check your token permissions.`),
+          );
+        }
       },
 
       onerror: () => {
-        reject(new Error('Gist push network error'));
+        reject(new Error('Network error while saving to GitHub. Check your connection.'));
       },
     });
   });
