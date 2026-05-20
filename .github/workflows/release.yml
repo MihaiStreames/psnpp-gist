@@ -5,15 +5,21 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   TAG: ${{ github.ref_name }}
 
 jobs:
   release:
+    name: Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # required to create GitHub releases and upload release assets
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -30,12 +36,13 @@ jobs:
         run: bash .github/workflows/scripts/extract-changelog.sh "$TAG" > release_notes.md
       - name: Generate checksums
         run: bash .github/workflows/scripts/checksum.sh dist/psnpp-gist-sync.user.js dist/psnpp-gist-sync.meta.js
-      - uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
-        with:
-          body_path: release_notes.md
-          generate_release_notes: false
-          files: |
-            dist/psnpp-gist-sync.user.js
-            dist/psnpp-gist-sync.meta.js
-            dist/psnpp-gist-sync.user.js.sha256
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$TAG" \
+            --notes-file release_notes.md \
+            dist/psnpp-gist-sync.user.js \
+            dist/psnpp-gist-sync.meta.js \
+            dist/psnpp-gist-sync.user.js.sha256 \
             dist/psnpp-gist-sync.meta.js.sha256
