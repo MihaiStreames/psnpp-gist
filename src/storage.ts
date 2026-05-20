@@ -1,5 +1,5 @@
-import type { IList } from './types.ts';
-import { LISTS_KEY, SETTINGS_KEY, REGISTRY_KEY } from './constants.ts';
+import type { IList } from "./types.ts";
+import { LISTS_KEY, SETTINGS_KEY, REGISTRY_KEY } from "./constants.ts";
 
 export type GistRegistry = Record<string, string>; // name -> localId
 
@@ -9,9 +9,9 @@ export interface GistConfig {
 }
 
 export type GistConfigState =
-  | { status: 'none' }
-  | { status: 'partial'; message: string }
-  | { status: 'ok'; config: GistConfig };
+  | { status: "none" }
+  | { status: "partial"; message: string }
+  | { status: "ok"; config: GistConfig };
 
 export function getListsFromStorage(): IList[] {
   const raw = localStorage.getItem(LISTS_KEY);
@@ -48,7 +48,7 @@ export function updateRegistry(names: string[], registry: GistRegistry): void {
 
   for (const name of names) {
     if (registry[name] === undefined) {
-      const match = all.find(l => l.name === name && (l.url === undefined || l.url === ''));
+      const match = all.find(l => l.name === name && (l.url === undefined || l.url === ""));
       if (match !== undefined) {
         registry[name] = match.id;
         changed = true;
@@ -86,28 +86,28 @@ export function applyPulledLists(pulled: IList[], registry: GistRegistry): void 
 export function loadGistConfigState(): GistConfigState {
   const raw = localStorage.getItem(SETTINGS_KEY);
   const s = raw !== null ? (JSON.parse(raw) as { gistToken?: string; gistId?: string }) : {};
-  const token = s.gistToken ?? '';
-  const gistId = s.gistId ?? '';
+  const token = s.gistToken ?? "";
+  const gistId = s.gistId ?? "";
 
-  if (token === '' && gistId === '') {
-    return { status: 'none' };
+  if (token === "" && gistId === "") {
+    return { status: "none" };
   }
 
-  if (token === '') {
+  if (token === "") {
     return {
-      status: 'partial',
-      message: 'Add your GitHub PAT in the Gist Sync settings to get started.',
+      status: "partial",
+      message: "Add your GitHub PAT in the Gist Sync settings to get started.",
     };
   }
 
-  if (gistId === '') {
+  if (gistId === "") {
     return {
-      status: 'partial',
-      message: 'Add your Gist ID in the Gist Sync settings to get started.',
+      status: "partial",
+      message: "Add your Gist ID in the Gist Sync settings to get started.",
     };
   }
 
-  return { status: 'ok', config: { token, gistId } };
+  return { status: "ok", config: { token, gistId } };
 }
 
 const transforms: Array<[string, (v: string) => string]> = [];
@@ -129,7 +129,7 @@ function patchSetItem(): void {
         try {
           value = fn(value);
         } catch (e) {
-          console.warn('[psnpp-gist] transform error:', e);
+          console.warn("[psnpp-gist] transform error:", e);
         }
       }
     }
@@ -141,7 +141,7 @@ function patchSetItem(): void {
         try {
           fn();
         } catch (e) {
-          console.warn('[psnpp-gist] effect error:', e);
+          console.warn("[psnpp-gist] effect error:", e);
         }
       }
     }
@@ -163,7 +163,7 @@ function patchRemoveItem(): void {
         try {
           fn();
         } catch (e) {
-          console.warn('[psnpp-gist] remove effect error:', e);
+          console.warn("[psnpp-gist] remove effect error:", e);
         }
       }
     }

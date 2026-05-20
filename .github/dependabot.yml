@@ -9,8 +9,9 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - dependencies
+      - ts
     commit-message:
-      prefix: 'chore(deps)'
+      prefix: "chore(deps)"
 
   - package-ecosystem: github-actions
     directory: /
@@ -23,4 +24,4 @@ updates:
       - dependencies
       - ci
     commit-message:
-      prefix: 'ci(deps)'
+      prefix: "ci(deps)"
