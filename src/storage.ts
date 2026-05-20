@@ -94,11 +94,17 @@ export function loadGistConfigState(): GistConfigState {
   }
 
   if (token === '') {
-    return { status: 'partial', message: 'GitHub PAT is missing from Gist Sync settings.' };
+    return {
+      status: 'partial',
+      message: 'Add your GitHub PAT in the Gist Sync settings to get started.',
+    };
   }
 
   if (gistId === '') {
-    return { status: 'partial', message: 'Gist ID is missing from Gist Sync settings.' };
+    return {
+      status: 'partial',
+      message: 'Add your Gist ID in the Gist Sync settings to get started.',
+    };
   }
 
   return { status: 'ok', config: { token, gistId } };
