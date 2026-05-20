@@ -1,6 +1,4 @@
-<img src="assets/icon.png" width="40" align="left" style="margin-right: 12px">
-
-# psnpp-gist
+# <img src="https://github.com/MihaiStreames/psnpp-gist/raw/master/assets/icon.png?raw=true" alt="psnpp-gist icon" height="28" width="28"> psnpp-gist
 
 `psnpp-gist` is a companion userscript for [PSNP+](https://psnp-plus.huskycode.dev/) that syncs your game lists to a GitHub Gist, keeping them in sync across browsers and devices.
 
