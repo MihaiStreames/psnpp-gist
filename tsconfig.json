@@ -26,6 +26,6 @@
     "isolatedModules": true
   },
 
-  "include": ["src/**/*.ts", "eslint.config.mjs", "build.ts"],
+  "include": ["src/**/*.ts", "build.ts"],
   "exclude": ["node_modules"]
 }
