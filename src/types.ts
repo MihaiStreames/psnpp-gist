@@ -36,7 +36,7 @@ export interface IList {
   tags: string[];
   orderBy: string;
   direction: string;
-  removeGames: 'started' | 'completed' | 'platinum' | 'never';
+  removeGames: "started" | "completed" | "platinum" | "never";
   removeStartedGames: boolean;
   note: string;
   url?: string;

@@ -1,6 +1,6 @@
-import type { IList } from './types.ts';
-import { SNAPSHOT_KEY } from './constants.ts';
-import type { GistRegistry } from './storage.ts';
+import type { IList } from "./types.ts";
+import { SNAPSHOT_KEY } from "./constants.ts";
+import type { GistRegistry } from "./storage.ts";
 
 export function debounce<T extends unknown[]>(
   fn: (...args: T) => Promise<void> | void,

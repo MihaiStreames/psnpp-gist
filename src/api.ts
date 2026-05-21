@@ -1,7 +1,7 @@
-import type { IList } from './types.ts';
+import type { IList } from "./types.ts";
 
-const GIST_API = 'https://api.github.com/gists';
-const FILENAME = 'psnpp-lists.json';
+const GIST_API = "https://api.github.com/gists";
+const FILENAME = "psnpp-lists.json";
 
 export interface PullResult {
   lists: IList[] | null; // null = file absent (first use)
@@ -11,8 +11,8 @@ export interface PullResult {
 function parseResponseHeader(headers: string, name: string): string {
   const lower = name.toLowerCase();
 
-  for (const line of headers.split('\r\n')) {
-    const colon = line.indexOf(':');
+  for (const line of headers.split("\r\n")) {
+    const colon = line.indexOf(":");
     if (colon === -1) continue;
 
     if (line.slice(0, colon).toLowerCase().trim() === lower) {
@@ -20,13 +20,13 @@ function parseResponseHeader(headers: string, name: string): string {
     }
   }
 
-  return '';
+  return "";
 }
 
 export function pullLists(gistId: string, token: string): Promise<PullResult> {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
-      method: 'GET',
+      method: "GET",
       url: `${GIST_API}/${gistId}`,
       headers: { Authorization: `Bearer ${token}` },
 
@@ -39,15 +39,15 @@ export function pullLists(gistId: string, token: string): Promise<PullResult> {
         }
 
         // classic PATs expose scopes; fine-grained PATs return an empty header
-        const scopeHeader = parseResponseHeader(res.responseHeaders, 'x-oauth-scopes');
+        const scopeHeader = parseResponseHeader(res.responseHeaders, "x-oauth-scopes");
         const scopes = scopeHeader
-          .split(',')
+          .split(",")
           .map(s => s.trim())
-          .filter(s => s !== '');
-        const unnecessary = scopes.filter(s => s !== 'gist');
+          .filter(s => s !== "");
+        const unnecessary = scopes.filter(s => s !== "gist");
         const scopeWarning =
           unnecessary.length > 0
-            ? `Token has extra scopes: ${unnecessary.join(', ')}. Consider a gist-only PAT.`
+            ? `Token has extra scopes: ${unnecessary.join(", ")}. Consider a gist-only PAT.`
             : null;
 
         const gist = JSON.parse(res.responseText) as {
@@ -62,7 +62,7 @@ export function pullLists(gistId: string, token: string): Promise<PullResult> {
         const lists = JSON.parse(file.content) as unknown;
         if (!Array.isArray(lists)) {
           reject(
-            new Error('Gist data looks corrupted. Try pushing again or check your Gist manually.'),
+            new Error("Gist data looks corrupted. Try pushing again or check your Gist manually."),
           );
           return;
         }
@@ -71,7 +71,7 @@ export function pullLists(gistId: string, token: string): Promise<PullResult> {
       },
 
       onerror: () => {
-        reject(new Error('Network error while reaching GitHub. Check your connection.'));
+        reject(new Error("Network error while reaching GitHub. Check your connection."));
       },
     });
   });
@@ -81,11 +81,11 @@ export function pushLists(lists: IList[], gistId: string, token: string): Promis
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
       // @ts-expect-error: @types/tampermonkey omits PATCH
-      method: 'PATCH',
+      method: "PATCH",
       url: `${GIST_API}/${gistId}`,
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       data: JSON.stringify({
         files: { [FILENAME]: { content: JSON.stringify(lists, null, 2) } },
@@ -101,7 +101,7 @@ export function pushLists(lists: IList[], gistId: string, token: string): Promis
       },
 
       onerror: () => {
-        reject(new Error('Network error while saving to GitHub. Check your connection.'));
+        reject(new Error("Network error while saving to GitHub. Check your connection."));
       },
     });
   });

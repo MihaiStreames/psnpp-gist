@@ -5,16 +5,9 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
-      - id: check-yaml
       - id: mixed-line-ending
         args: [--fix=lf]
         priority: 0
-
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
-    hooks:
-      - id: check-added-large-files
-        priority: 1
 
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     rev: v1.25.2
@@ -29,8 +22,14 @@ repos:
         additional_dependencies:
           - prettier@3.8.3
           - prettier-plugin-packagejson@3.0.2
-        types_or: [ts, json, markdown, yaml]
+        types_or: [ts, javascript, json, markdown, yaml]
         priority: 0
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        priority: 1
 
   - repo: local
     hooks:
