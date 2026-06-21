@@ -17,14 +17,24 @@ export function getListsFromStorage(): IList[] {
   const raw = localStorage.getItem(LISTS_KEY);
   if (raw === null) return [];
 
-  return JSON.parse(raw) as IList[];
+  try {
+    return JSON.parse(raw) as IList[];
+  } catch {
+    console.warn("[psnpp-gist] corrupted lists data in localStorage, resetting");
+    return [];
+  }
 }
 
 export function loadRegistry(): GistRegistry {
   const raw = localStorage.getItem(REGISTRY_KEY);
   if (raw === null) return {};
 
-  return JSON.parse(raw) as GistRegistry;
+  try {
+    return JSON.parse(raw) as GistRegistry;
+  } catch {
+    console.warn("[psnpp-gist] corrupted registry data in localStorage, resetting");
+    return {};
+  }
 }
 
 function saveRegistry(registry: GistRegistry): void {
@@ -85,7 +95,15 @@ export function applyPulledLists(pulled: IList[], registry: GistRegistry): void 
 
 export function loadGistConfigState(): GistConfigState {
   const raw = localStorage.getItem(SETTINGS_KEY);
-  const s = raw !== null ? (JSON.parse(raw) as { gistToken?: string; gistId?: string }) : {};
+  let s: { gistToken?: string; gistId?: string } = {};
+  if (raw !== null) {
+    try {
+      s = JSON.parse(raw) as typeof s;
+    } catch {
+      console.warn("[psnpp-gist] corrupted settings data in localStorage");
+    }
+  }
+
   const token = s.gistToken ?? "";
   const gistId = s.gistId ?? "";
 

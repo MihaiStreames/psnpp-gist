@@ -1,8 +1,9 @@
 import { SETTINGS_KEY, SYNCED_LIST_NAMES } from "./constants.ts";
-import { onStorageSet } from "./storage.ts";
-import { panelInputRow, panelSection } from "./panel.ts";
+import { getListsFromStorage, onStorageSet } from "./storage.ts";
+import { panelCheckboxRow, panelInputRow, panelSection } from "./panel.ts";
 
 const PAT_RE = /^(ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82})$/;
+const GIST_ID_RE = /^[a-f0-9]{20,32}$/;
 
 interface GistSettings {
   gistToken: string;
@@ -36,17 +37,41 @@ function makeInput(value: string, validate?: (v: string) => boolean): HTMLInputE
   return input;
 }
 
+function buildCheckboxes(selected: Set<string>): { rows: HTMLElement[]; read: () => string[] } {
+  const allLists = getListsFromStorage();
+  const checkboxes: Array<{ name: string; input: HTMLInputElement }> = [];
+
+  for (const list of allLists) {
+    // skip URL-sourced lists (scraped, not user-created)
+    if (list.url !== undefined && list.url !== "") {
+      continue;
+    }
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = selected.has(list.name);
+    checkboxes.push({ name: list.name, input });
+  }
+
+  const rows = checkboxes.map(({ name, input }) => panelCheckboxRow(name, input));
+
+  return {
+    rows,
+    read: () => checkboxes.filter(({ input }) => input.checked).map(({ name }) => name),
+  };
+}
+
 function buildSection(): { el: HTMLElement; read: () => GistSettings } {
   const s = readGistSettings();
   const tokenInput = makeInput(s.gistToken, v => PAT_RE.test(v));
-  const idInput = makeInput(s.gistId);
-  const listsInput = makeInput(s.gistSyncedLists.join(", "));
+  const idInput = makeInput(s.gistId, v => GIST_ID_RE.test(v));
+  const { rows: checkboxRows, read: readChecked } = buildCheckboxes(new Set(s.gistSyncedLists));
 
   const section = panelSection(
     "Gist Sync",
     panelInputRow("GitHub PAT", tokenInput, 'Personal Access Token with "gist" scope.'),
     panelInputRow("Gist ID", idInput, "The ID from your Gist URL: gist.github.com/{user}/{id}"),
-    panelInputRow("Synced lists", listsInput, "Comma-separated list names to sync with Gist."),
+    ...checkboxRows,
   );
   section.id = "psnpp-gist-section";
 
@@ -55,10 +80,7 @@ function buildSection(): { el: HTMLElement; read: () => GistSettings } {
     read: () => ({
       gistToken: tokenInput.value.trim(),
       gistId: idInput.value.trim(),
-      gistSyncedLists: listsInput.value
-        .split(",")
-        .map(n => n.trim())
-        .filter(n => n !== ""),
+      gistSyncedLists: readChecked(),
     }),
   };
 }

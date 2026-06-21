@@ -2,6 +2,17 @@
 
 All notable changes to `psnpp-gist`.
 
+## [0.1.1] - 2026-06-22
+
+### Changed
+
+- Synced lists setting now uses checkboxes instead of a comma-separated text field
+
+### Fixed
+
+- Gist ID field now validates the format and highlights invalid input
+- Corrupted localStorage data no longer crashes the extension on load
+
 ## [0.1.0] - 2026-05-19
 
 ### Added

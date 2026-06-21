@@ -12,7 +12,8 @@ import {
 } from "./storage.ts";
 import type { GistConfig } from "./storage.ts";
 import { debounce, getSnapshot, getSyncableFromRegistry, isDirty, markSynced } from "./sync.ts";
-import { injectStatusIndicator, markGistLists, waitForElement } from "./ui.ts";
+import { waitForElement } from "./dom.ts";
+import { injectStatusIndicator, markGistLists } from "./ui.ts";
 import type { SyncStatus } from "./ui.ts";
 
 const registry = ensureRegistered(loadSyncedListNames());

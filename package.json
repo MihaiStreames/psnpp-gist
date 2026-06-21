@@ -1,6 +1,6 @@
 {
   "name": "psnpp-gist",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Syncs PSNP+ game lists to a GitHub Gist, keeping them in sync across browsers and devices.",
   "type": "module",
@@ -12,7 +12,7 @@
     "@types/bun": "1.3.14",
     "@types/tampermonkey": "5.0.5",
     "eslint": "10.4.1",
-    "typescript-eslint": "8.60.0"
+    "typescript-eslint": "8.61.0"
   },
   "peerDependencies": {
     "typescript": "6.0.3"
