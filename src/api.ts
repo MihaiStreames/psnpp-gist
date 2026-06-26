@@ -1,11 +1,31 @@
+import { MANIFEST_FILENAME } from "./constants.ts";
 import type { IList } from "./types.ts";
 
 const GIST_API = "https://api.github.com/gists";
-const FILENAME = "psnpp-lists.json";
 
-export interface PullResult {
-  lists: IList[] | null; // null = file absent (first use)
-  scopeWarning: string | null;
+export type GistError =
+  | { kind: "unauthorized" }
+  | { kind: "forbidden" }
+  | { kind: "not-found" }
+  | { kind: "http-error"; status: number };
+
+export class GistApiError extends Error {
+  constructor(public readonly error: GistError) {
+    super(GistApiError.message(error));
+  }
+
+  static message(e: GistError): string {
+    switch (e.kind) {
+      case "unauthorized":
+        return "Token is invalid or expired. Check your GitHub PAT.";
+      case "forbidden":
+        return "No write access to this Gist. Check your token permissions.";
+      case "not-found":
+        return "Gist not found. Check your Gist ID.";
+      case "http-error":
+        return `GitHub API error (${e.status}). Try again later.`;
+    }
+  }
 }
 
 function parseResponseHeader(headers: string, name: string): string {
@@ -14,16 +34,39 @@ function parseResponseHeader(headers: string, name: string): string {
   for (const line of headers.split("\r\n")) {
     const colon = line.indexOf(":");
     if (colon === -1) continue;
-
-    if (line.slice(0, colon).toLowerCase().trim() === lower) {
-      return line.slice(colon + 1).trim();
-    }
+    if (line.slice(0, colon).toLowerCase().trim() === lower) return line.slice(colon + 1).trim();
   }
 
   return "";
 }
 
-export function pullLists(gistId: string, token: string): Promise<PullResult> {
+function checkScopes(headers: string): string | null {
+  // classic PATs expose scopes; fine-grained PATs return an empty header
+  const scopeHeader = parseResponseHeader(headers, "x-oauth-scopes");
+  const scopes = scopeHeader
+    .split(",")
+    .map(s => s.trim())
+    .filter(s => s !== "");
+  const unnecessary = scopes.filter(s => s !== "gist");
+
+  return unnecessary.length > 0
+    ? `Token has extra scopes: ${unnecessary.join(", ")}. Consider a gist-only PAT.`
+    : null;
+}
+
+function toGistError(status: number): GistError {
+  if (status === 401) return { kind: "unauthorized" };
+  if (status === 403) return { kind: "forbidden" };
+  if (status === 404) return { kind: "not-found" };
+  return { kind: "http-error", status };
+}
+
+interface GistResponse {
+  files: Record<string, { content: string } | undefined>;
+  updated_at: string;
+}
+
+function getGist(gistId: string, token: string): Promise<{ gist: GistResponse; headers: string }> {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
       method: "GET",
@@ -32,42 +75,14 @@ export function pullLists(gistId: string, token: string): Promise<PullResult> {
 
       onload: (res: Tampermonkey.Response<never>) => {
         if (res.status !== 200) {
-          reject(
-            new Error(`Couldn't reach your Gist (${res.status}). Check your Gist ID and token.`),
-          );
+          reject(new GistApiError(toGistError(res.status)));
           return;
         }
 
-        // classic PATs expose scopes; fine-grained PATs return an empty header
-        const scopeHeader = parseResponseHeader(res.responseHeaders, "x-oauth-scopes");
-        const scopes = scopeHeader
-          .split(",")
-          .map(s => s.trim())
-          .filter(s => s !== "");
-        const unnecessary = scopes.filter(s => s !== "gist");
-        const scopeWarning =
-          unnecessary.length > 0
-            ? `Token has extra scopes: ${unnecessary.join(", ")}. Consider a gist-only PAT.`
-            : null;
-
-        const gist = JSON.parse(res.responseText) as {
-          files: Record<string, { content: string }>;
-        };
-        const file = gist.files[FILENAME];
-        if (file === undefined) {
-          resolve({ lists: null, scopeWarning });
-          return;
-        }
-
-        const lists = JSON.parse(file.content) as unknown;
-        if (!Array.isArray(lists)) {
-          reject(
-            new Error("Gist data looks corrupted. Try pushing again or check your Gist manually."),
-          );
-          return;
-        }
-
-        resolve({ lists: lists as IList[], scopeWarning });
+        resolve({
+          gist: JSON.parse(res.responseText) as GistResponse,
+          headers: res.responseHeaders,
+        });
       },
 
       onerror: () => {
@@ -77,7 +92,11 @@ export function pullLists(gistId: string, token: string): Promise<PullResult> {
   });
 }
 
-export function pushLists(lists: IList[], gistId: string, token: string): Promise<void> {
+function patchGist(
+  gistId: string,
+  token: string,
+  files: Record<string, { content: string } | null>,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
       // @ts-expect-error: @types/tampermonkey omits PATCH
@@ -87,16 +106,13 @@ export function pushLists(lists: IList[], gistId: string, token: string): Promis
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      data: JSON.stringify({
-        files: { [FILENAME]: { content: JSON.stringify(lists, null, 2) } },
-      }),
+      data: JSON.stringify({ files }),
 
       onload: (res: Tampermonkey.Response<never>) => {
-        if (res.status === 200) resolve();
-        else {
-          reject(
-            new Error(`Couldn't save to your Gist (${res.status}). Check your token permissions.`),
-          );
+        if (res.status === 200) {
+          resolve();
+        } else {
+          reject(new GistApiError(toGistError(res.status)));
         }
       },
 
@@ -104,5 +120,62 @@ export function pushLists(lists: IList[], gistId: string, token: string): Promis
         reject(new Error("Network error while saving to GitHub. Check your connection."));
       },
     });
+  });
+}
+
+export interface ManifestResult {
+  manifest: Record<string, string> | null;
+  scopeWarning: string | null;
+  gistUpdatedAt: string;
+}
+
+export async function fetchManifest(gistId: string, token: string): Promise<ManifestResult> {
+  const { gist, headers } = await getGist(gistId, token);
+  const scopeWarning = checkScopes(headers);
+  const manifestFile = gist.files[MANIFEST_FILENAME];
+
+  return {
+    manifest:
+      manifestFile !== undefined
+        ? (JSON.parse(manifestFile.content) as Record<string, string>)
+        : null,
+    scopeWarning,
+    gistUpdatedAt: gist.updated_at,
+  };
+}
+
+export async function pullFile(gistId: string, uuid: string, token: string): Promise<IList | null> {
+  const { gist } = await getGist(gistId, token);
+  const file = gist.files[`${uuid}.json`];
+  if (file === undefined) return null;
+  return JSON.parse(file.content) as IList;
+}
+
+export async function pushFiles(
+  gistId: string,
+  lists: Record<string, IList>,
+  manifest: Record<string, string>,
+  token: string,
+): Promise<void> {
+  const files: Record<string, { content: string }> = {
+    [MANIFEST_FILENAME]: { content: JSON.stringify(manifest, null, 2) },
+  };
+
+  for (const [uuid, list] of Object.entries(lists)) {
+    files[`${uuid}.json`] = { content: JSON.stringify(list, null, 2) };
+  }
+
+  await patchGist(gistId, token, files);
+}
+
+export async function deleteFile(
+  gistId: string,
+  uuid: string,
+  manifest: Record<string, string>,
+  token: string,
+): Promise<void> {
+  await patchGist(gistId, token, {
+    [`${uuid}.json`]: null,
+    [MANIFEST_FILENAME]: { content: JSON.stringify(manifest, null, 2) },
   });
 }

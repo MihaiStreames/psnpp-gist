@@ -1,86 +1,183 @@
-import { pullLists, pushLists } from "./api.ts";
-import { DEBOUNCE_MS, LISTS_KEY, REGISTRY_KEY, SETTINGS_KEY, SNAPSHOT_KEY } from "./constants.ts";
-import { setupSettings, loadSyncedListNames } from "./settings.ts";
+import { GistApiError, fetchManifest, pullFile, pushFiles, deleteFile } from "./api.ts";
+import { DEBOUNCE_MS, LISTS_KEY } from "./constants.ts";
+import type { IList } from "./types.ts";
+import { waitForElement } from "./dom.ts";
+import { setupSettings } from "./settings.ts";
 import {
-  applyPulledLists,
-  ensureRegistered,
+  buildRegistry,
+  createList,
   getListsFromStorage,
   loadGistConfigState,
   onStorageEffect,
   onStorageRemove,
-  updateRegistry,
+  snapshotKey,
 } from "./storage.ts";
-import type { GistConfig } from "./storage.ts";
-import { debounce, getSnapshot, getSyncableFromRegistry, isDirty, markSynced } from "./sync.ts";
-import { waitForElement } from "./dom.ts";
+import type { GistConfig, GistEntry, GistRegistry } from "./storage.ts";
+import { debounce, getListSnapshot, isKeyDirty, markKeySynced } from "./sync.ts";
 import { injectStatusIndicator, markGistLists } from "./ui.ts";
 import type { SyncStatus } from "./ui.ts";
 
-const registry = ensureRegistered(loadSyncedListNames());
-
 const configState = loadGistConfigState();
 const config: GistConfig | null = configState.status === "ok" ? configState.config : null;
+const registry: GistRegistry = config !== null ? buildRegistry(config) : {};
+const cachedManifest: Record<string, Record<string, string>> = {};
+const lastPulledAt: Record<string, string> = {};
 
-const trackedNames = Object.keys(registry);
 console.log(
-  `[psnpp-gist] init | config: ${configState.status} | tracking: ${trackedNames.length > 0 ? trackedNames.join(", ") : "none"}`,
+  `[psnpp-gist] init | config: ${configState.status} | tracking: ${Object.keys(registry).length} files`,
 );
 
-// no-op until injectStatusIndicator() runs on the game lists page
 let updateStatus: (status: SyncStatus, detail?: string) => void = () => {};
-
 let suppressSync = false;
+
+function handleApiError(e: unknown, gistId: string): void {
+  if (e instanceof GistApiError) {
+    const err = e.error;
+    if (err.kind === "forbidden") {
+      const entry = config?.gists.find(g => g.id === gistId);
+      if (entry !== undefined) {
+        entry.readOnly = true;
+      }
+    }
+  }
+
+  console.warn("[psnpp-gist] api error:", e);
+  updateStatus("error", String(e instanceof Error ? e.message : e));
+}
 
 const debouncedSync = debounce(async () => {
   if (config === null) return;
 
-  const syncable = getSyncableFromRegistry(getListsFromStorage(), registry);
-  if (syncable.length === 0) return;
+  for (const entry of config.gists) {
+    if (entry.readOnly === true) continue;
 
-  const snapshot = getSnapshot(syncable);
-  if (!isDirty(snapshot)) return;
+    const all = getListsFromStorage();
+    const dirtyFiles: Record<string, IList> = {};
+    const manifest = { ...cachedManifest[entry.id] };
 
-  console.log("[psnpp-gist] pushing...");
-  updateStatus("syncing");
+    for (const uuid of entry.files) {
+      const local = all.find(l => l.id === uuid);
+      if (local === undefined) continue;
 
-  try {
-    await pushLists(syncable, config.gistId, config.token);
-    markSynced(snapshot);
-    updateStatus("synced");
-    console.log("[psnpp-gist] synced");
-  } catch (e) {
-    console.warn("[psnpp-gist] push failed:", e);
-    updateStatus("error", String(e));
+      const key = snapshotKey(entry.id, uuid);
+      const snap = getListSnapshot(local);
+      if (isKeyDirty(key, snap)) {
+        dirtyFiles[uuid] = local;
+        manifest[uuid] = local.name;
+      }
+    }
+
+    const dirtyUuids = Object.keys(dirtyFiles);
+    if (dirtyUuids.length === 0) continue;
+
+    console.log(`[psnpp-gist] pushing ${dirtyUuids.length} files to ${entry.id}`);
+    updateStatus("syncing");
+
+    try {
+      await pushFiles(entry.id, dirtyFiles, manifest, config.token);
+      cachedManifest[entry.id] = manifest;
+
+      for (const [uuid, list] of Object.entries(dirtyFiles)) {
+        markKeySynced(snapshotKey(entry.id, uuid), getListSnapshot(list));
+      }
+
+      updateStatus("synced");
+      console.log("[psnpp-gist] synced");
+    } catch (e) {
+      handleApiError(e, entry.id);
+    }
   }
 }, DEBOUNCE_MS);
 
 onStorageEffect(LISTS_KEY, () => {
-  updateRegistry(loadSyncedListNames(), registry);
   if (!suppressSync) debouncedSync();
 });
 
-onStorageEffect(SETTINGS_KEY, () => {
-  updateRegistry(loadSyncedListNames(), registry);
-});
-
-// clear data uses removeItem; reset our state so next load starts fresh
 onStorageRemove(LISTS_KEY, () => {
-  for (const key of Object.keys(registry)) {
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete registry[key];
-  }
+  if (config === null) return;
 
-  localStorage.removeItem(REGISTRY_KEY);
-  localStorage.removeItem(SNAPSHOT_KEY);
+  for (const entry of config.gists) {
+    if (entry.readOnly === true) continue;
+
+    for (const uuid of [...entry.files]) {
+      const key = `${entry.id}:${uuid}`;
+      const localId = registry[key];
+      if (localId === undefined) continue;
+
+      // check if list was actually deleted
+      const still = getListsFromStorage().find(l => l.id === localId);
+      if (still !== undefined) continue;
+
+      const manifest = { ...cachedManifest[entry.id] };
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete manifest[uuid];
+
+      void deleteFile(entry.id, uuid, manifest, config.token).then(
+        () => {
+          cachedManifest[entry.id] = manifest;
+          entry.files = entry.files.filter(f => f !== uuid);
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete registry[key];
+          console.log(`[psnpp-gist] deleted ${uuid} from ${entry.id.slice(0, 8)}`);
+        },
+        (e: unknown) => {
+          handleApiError(e, entry.id);
+        },
+      );
+    }
+  }
 });
 
 setupSettings();
+
+async function pullEntry(entry: GistEntry, token: string): Promise<string | null> {
+  const { manifest, scopeWarning, gistUpdatedAt } = await fetchManifest(entry.id, token);
+  if (manifest !== null) {
+    cachedManifest[entry.id] = manifest;
+    lastPulledAt[entry.id] = gistUpdatedAt;
+  }
+
+  for (const uuid of entry.files) {
+    const pulled = await pullFile(entry.id, uuid, token);
+    if (pulled === null) continue;
+
+    const localId = registry[`${entry.id}:${uuid}`];
+    const key = snapshotKey(entry.id, uuid);
+
+    if (localId === null || localId === undefined) {
+      // no local list
+      createList({ ...pulled, id: uuid });
+      registry[`${entry.id}:${uuid}`] = uuid;
+      markKeySynced(key, getListSnapshot(pulled));
+      console.log(`[psnpp-gist] created local list from ${uuid}`);
+    } else {
+      // gist wins on conflict
+      const snap = getListSnapshot(pulled);
+      if (isKeyDirty(key, snap)) {
+        console.log(`[psnpp-gist] pulling ${uuid}...`);
+        suppressSync = true;
+
+        const all = getListsFromStorage();
+        const idx = all.findIndex(l => l.id === localId);
+        if (idx !== -1) {
+          all[idx] = { ...pulled, id: localId };
+          localStorage.setItem(LISTS_KEY, JSON.stringify(all));
+        }
+
+        suppressSync = false;
+        markKeySynced(key, snap);
+      }
+    }
+  }
+
+  return scopeWarning;
+}
 
 async function initGameListsPage(): Promise<void> {
   try {
     await waitForElement("label.select select");
   } catch {
-    return; // not on game lists page
+    return;
   }
 
   if (configState.status === "none") return;
@@ -91,49 +188,50 @@ async function initGameListsPage(): Promise<void> {
     return;
   }
 
-  if (Object.keys(registry).length === 0) return;
+  if (config === null || config.gists.length === 0) return;
 
   updateStatus = injectStatusIndicator();
   markGistLists(registry);
+  updateStatus("syncing");
+
+  let lastScopeWarning: string | null = null;
 
   try {
-    updateStatus("syncing");
-
-    const { lists: pulled, scopeWarning } = await pullLists(
-      configState.config.gistId,
-      configState.config.token,
-    );
-
-    if (scopeWarning !== null) {
-      console.warn("[psnpp-gist] scope warning:", scopeWarning);
-    }
-
-    if (pulled === null) {
-      // first use: psnpp-lists.json doesn't exist in the Gist yet
-      console.log("[psnpp-gist] initial push...");
-      const syncable = getSyncableFromRegistry(getListsFromStorage(), registry);
-      await pushLists(syncable, configState.config.gistId, configState.config.token);
-      markSynced(getSnapshot(syncable));
-      console.log("[psnpp-gist] initial push done");
-    } else {
-      const pulledSnapshot = getSnapshot(pulled);
-      if (isDirty(pulledSnapshot)) {
-        console.log("[psnpp-gist] pulling from Gist...");
-
-        suppressSync = true;
-        applyPulledLists(pulled, registry);
-        suppressSync = false;
-
-        markSynced(pulledSnapshot);
-        console.log("[psnpp-gist] pulled");
+    for (const entry of config.gists) {
+      const warning = await pullEntry(entry, config.token);
+      if (warning !== null) {
+        lastScopeWarning = warning;
+        console.warn("[psnpp-gist] scope warning:", warning);
       }
     }
 
-    updateStatus("synced", scopeWarning ?? undefined);
+    updateStatus("synced", lastScopeWarning ?? undefined);
   } catch (e) {
     console.warn("[psnpp-gist] pull failed:", e);
-    updateStatus("error", String(e));
+    updateStatus("error", String(e instanceof Error ? e.message : e));
   }
 }
+
+// re-pull on tab focus if gist updated
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || config === null) return;
+
+  for (const entry of config.gists) {
+    void fetchManifest(entry.id, config.token).then(
+      ({ gistUpdatedAt }) => {
+        const last = lastPulledAt[entry.id];
+        if (last !== undefined && gistUpdatedAt > last) {
+          console.log(`[psnpp-gist] ${entry.id} updated, re-pulling...`);
+          void pullEntry(entry, config.token);
+        }
+
+        lastPulledAt[entry.id] = gistUpdatedAt;
+      },
+      (e: unknown) => {
+        console.warn("[psnpp-gist] visibility check failed:", e);
+      },
+    );
+  }
+});
 
 void initGameListsPage();

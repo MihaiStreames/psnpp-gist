@@ -1,26 +1,12 @@
-import { SETTINGS_KEY, SYNCED_LIST_NAMES } from "./constants.ts";
-import { getListsFromStorage, onStorageSet } from "./storage.ts";
+import { fetchManifest } from "./api.ts";
+import { SETTINGS_KEY } from "./constants.ts";
+import { button, el, faIcon, tip } from "./dom.ts";
 import { panelCheckboxRow, panelInputRow, panelSection } from "./panel.ts";
+import type { GistConfig, GistEntry } from "./storage.ts";
+import { getListsFromStorage, onStorageSet } from "./storage.ts";
 
 const PAT_RE = /^(ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82})$/;
 const GIST_ID_RE = /^[a-f0-9]{20,32}$/;
-
-interface GistSettings {
-  gistToken: string;
-  gistId: string;
-  gistSyncedLists: string[];
-}
-
-function readGistSettings(): GistSettings {
-  const raw = localStorage.getItem(SETTINGS_KEY);
-  const s = raw !== null ? (JSON.parse(raw) as Record<string, unknown>) : {};
-
-  return {
-    gistToken: (s["gistToken"] as string | undefined) ?? "",
-    gistId: (s["gistId"] as string | undefined) ?? "",
-    gistSyncedLists: (s["gistSyncedLists"] as string[] | undefined) ?? SYNCED_LIST_NAMES,
-  };
-}
 
 function makeInput(value: string, validate?: (v: string) => boolean): HTMLInputElement {
   const input = document.createElement("input");
@@ -37,71 +23,214 @@ function makeInput(value: string, validate?: (v: string) => boolean): HTMLInputE
   return input;
 }
 
-function buildCheckboxes(selected: Set<string>): { rows: HTMLElement[]; read: () => string[] } {
+function readStoredConfig(): { token: string; gists: GistEntry[] } {
+  const raw = localStorage.getItem(SETTINGS_KEY);
+  if (raw === null) return { token: "", gists: [] };
+
+  try {
+    const s = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      token: (s["gistToken"] as string | undefined) ?? "",
+      gists: (s["gistEntries"] as GistEntry[] | undefined) ?? [],
+    };
+  } catch {
+    return { token: "", gists: [] };
+  }
+}
+
+interface GistBlock {
+  el: HTMLElement;
+  read: () => GistEntry;
+}
+
+function buildGistBlock(
+  entry: GistEntry,
+  manifest: Record<string, string>,
+  onRemove: () => void,
+): GistBlock {
   const allLists = getListsFromStorage();
-  const checkboxes: Array<{ name: string; input: HTMLInputElement }> = [];
+  const localOnlyLists = allLists.filter(
+    l => (l.url === undefined || l.url === "") && !Object.keys(manifest).includes(l.id),
+  );
+  const configFiles = new Set(entry.files);
 
-  for (const list of allLists) {
-    // skip URL-sourced lists (scraped, not user-created)
-    if (list.url !== undefined && list.url !== "") {
-      continue;
-    }
+  const checkboxes: Array<{ uuid: string; name: string; input: HTMLInputElement }> = [];
 
+  for (const [uuid, name] of Object.entries(manifest)) {
     const input = document.createElement("input");
     input.type = "checkbox";
-    input.checked = selected.has(list.name);
-    checkboxes.push({ name: list.name, input });
+    input.checked = configFiles.has(uuid);
+    checkboxes.push({ uuid, name, input });
+  }
+
+  for (const list of localOnlyLists) {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = configFiles.has(list.id);
+    checkboxes.push({ uuid: list.id, name: list.name, input });
   }
 
   const rows = checkboxes.map(({ name, input }) => panelCheckboxRow(name, input));
 
+  const removeBtn = button("red");
+  removeBtn.textContent = "Remove Gist";
+  removeBtn.style.marginTop = "10px";
+  removeBtn.addEventListener("click", e => {
+    e.preventDefault();
+    onRemove();
+  });
+
+  const container = el("div");
+  container.className = "box";
+  container.style.cssText = "padding: 10px; margin-top: 10px;";
+
+  const header = el("div");
+  header.style.cssText = "font-weight: bold; margin-bottom: 5px; font-size: 12px; color: #888;";
+  header.textContent = `Gist ${entry.id}`;
+
+  container.append(header, ...rows, removeBtn);
+
   return {
-    rows,
-    read: () => checkboxes.filter(({ input }) => input.checked).map(({ name }) => name),
+    el: container,
+    read: () => ({
+      id: entry.id,
+      files: checkboxes.filter(({ input }) => input.checked).map(({ uuid }) => uuid),
+      readOnly: entry.readOnly,
+    }),
   };
 }
 
-function buildSection(): { el: HTMLElement; read: () => GistSettings } {
-  const s = readGistSettings();
-  const tokenInput = makeInput(s.gistToken, v => PAT_RE.test(v));
-  const idInput = makeInput(s.gistId, v => GIST_ID_RE.test(v));
-  const { rows: checkboxRows, read: readChecked } = buildCheckboxes(new Set(s.gistSyncedLists));
+function buildSection(stored: { token: string; gists: GistEntry[] }): {
+  el: HTMLElement;
+  read: () => GistConfig;
+} {
+  const tokenInput = makeInput(stored.token, v => PAT_RE.test(v));
+  const addIdInput = makeInput("", v => GIST_ID_RE.test(v));
+
+  const gistContainer = el("div");
+  const gistBlocks: GistBlock[] = [];
+
+  function removeGistBlock(block: GistBlock): void {
+    const idx = gistBlocks.indexOf(block);
+    if (idx !== -1) {
+      block.el.remove();
+      gistBlocks.splice(idx, 1);
+    }
+  }
+
+  // render existing gist entries (with empty manifests until fetched)
+  for (const entry of stored.gists) {
+    const block = buildGistBlock(entry, {}, () => {
+      removeGistBlock(block);
+    });
+    gistBlocks.push(block);
+    gistContainer.appendChild(block.el);
+  }
+
+  const addRow = el("div", "row middle-xs");
+  addRow.style.cssText = "margin-top: 10px; margin-bottom: 10px;";
+
+  const addLabel = el("span", "small-title");
+  addLabel.textContent = "Add Gist";
+  const addLabelCol = el("div", "col-xs-2");
+  addLabelCol.style.textAlign = "right";
+  addLabelCol.appendChild(addLabel);
+
+  const addInputLabel = el("label", "input");
+  addInputLabel.append(addIdInput, el("i"));
+  tip(addIdInput, "Paste a Gist ID to add it. Find it in the URL: gist.github.com/{user}/{id}");
+
+  const addInputCol = el("div", "col-xs-9");
+  addInputCol.appendChild(addInputLabel);
+
+  const fetchLink = button("blue");
+  fetchLink.appendChild(faIcon("fa-download"));
+
+  const fetchCol = el("div", "col-xs-1");
+  fetchCol.appendChild(fetchLink);
+
+  addRow.append(addLabelCol, addInputCol, fetchCol);
+
+  const statusMsg = el("div");
+  statusMsg.style.cssText = "margin-top: 5px; font-size: 12px; padding-left: 16.667%;";
+
+  fetchLink.addEventListener("click", e => {
+    e.preventDefault();
+    const id = addIdInput.value.trim();
+    if (!GIST_ID_RE.test(id)) return;
+
+    const token = tokenInput.value.trim();
+    if (!PAT_RE.test(token)) {
+      statusMsg.textContent = "Enter a valid PAT first.";
+      statusMsg.style.color = "#ffb6c1";
+      return;
+    }
+
+    // check for duplicate
+    if (gistBlocks.some(b => b.read().id === id)) {
+      statusMsg.textContent = "This Gist is already added.";
+      statusMsg.style.color = "#ffb6c1";
+      return;
+    }
+
+    statusMsg.textContent = "Fetching...";
+    statusMsg.style.color = "#888";
+
+    void fetchManifest(id, token).then(
+      ({ manifest }) => {
+        addGist(id, manifest ?? {});
+        addIdInput.value = "";
+        statusMsg.textContent = "";
+      },
+      (e: unknown) => {
+        statusMsg.textContent = String(e instanceof Error ? e.message : e);
+        statusMsg.style.color = "#ffb6c1";
+      },
+    );
+  });
+
+  function addGist(id: string, manifest: Record<string, string>): void {
+    const entry: GistEntry = {
+      id,
+      files: Object.keys(manifest),
+    };
+    const block = buildGistBlock(entry, manifest, () => {
+      removeGistBlock(block);
+    });
+    gistBlocks.push(block);
+    gistContainer.appendChild(block.el);
+  }
 
   const section = panelSection(
     "Gist Sync",
     panelInputRow("GitHub PAT", tokenInput, 'Personal Access Token with "gist" scope.'),
-    panelInputRow("Gist ID", idInput, "The ID from your Gist URL: gist.github.com/{user}/{id}"),
-    ...checkboxRows,
+    gistContainer,
+    addRow,
+    statusMsg,
   );
   section.id = "psnpp-gist-section";
 
   return {
     el: section,
     read: () => ({
-      gistToken: tokenInput.value.trim(),
-      gistId: idInput.value.trim(),
-      gistSyncedLists: readChecked(),
+      token: tokenInput.value.trim(),
+      gists: gistBlocks.map(b => b.read()),
     }),
   };
 }
 
-export function loadSyncedListNames(): string[] {
-  return readGistSettings().gistSyncedLists;
-}
-
 export function setupSettings(): void {
-  let reader: (() => GistSettings) | null = null;
+  let reader: (() => GistConfig) | null = null;
 
   // merge our fields into psnpp-settings whenever PSNP+ saves
   onStorageSet(SETTINGS_KEY, value => {
     if (reader === null) return value;
 
     const parsed = JSON.parse(value) as Record<string, unknown>;
-    const gist = reader();
+    const config = reader();
 
-    parsed["gistToken"] = gist.gistToken;
-    parsed["gistId"] = gist.gistId;
-    parsed["gistSyncedLists"] = gist.gistSyncedLists;
+    parsed["gistToken"] = config.token;
+    parsed["gistEntries"] = config.gists;
 
     return JSON.stringify(parsed);
   });
@@ -110,14 +239,14 @@ export function setupSettings(): void {
     const inner = document.querySelector("#inner");
 
     if (inner !== null && inner.querySelector("#psnpp-gist-section") === null) {
-      const { el, read } = buildSection();
-      reader = read;
+      const state = buildSection(readStoredConfig());
+      reader = state.read;
 
       const trophyH3 = Array.from(inner.querySelectorAll("h3")).find(
         h => h.textContent === "Trophy List",
       );
       const anchor = trophyH3?.closest(".row") ?? inner.querySelector(".bottom.cf") ?? null;
-      anchor?.before(el);
+      anchor?.before(state.el);
     }
 
     if (inner === null) reader = null;

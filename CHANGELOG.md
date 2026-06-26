@@ -2,6 +2,25 @@
 
 All notable changes to `psnpp-gist`.
 
+## [0.2.0] - 2026-06-22
+
+### Added
+
+- Multiple Gist support -- sync different lists to different Gists
+- Add and remove Gists with a Fetch button in settings
+- Pick which lists to sync per Gist with checkboxes
+- Auto re-pull when switching back to the tab if the Gist was updated
+- Better error messages for expired tokens, missing Gists, and permission issues
+
+### Changed
+
+- Each list is now stored as its own file in the Gist instead of one big JSON blob
+- Sync is per-list instead of all-or-nothing
+
+### Removed
+
+- Old single-Gist setup: **re-add your Gist in settings after updating**
+
 ## [0.1.1] - 2026-06-22
 
 ### Changed

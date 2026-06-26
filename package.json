@@ -1,8 +1,8 @@
 {
   "name": "psnpp-gist",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
-  "description": "Syncs PSNP+ game lists to a GitHub Gist, keeping them in sync across browsers and devices.",
+  "description": "Sync PSNP+ game lists with GitHub Gist.",
   "type": "module",
   "scripts": {
     "build": "bun run build.ts"

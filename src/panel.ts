@@ -41,6 +41,7 @@ export function panelInputRow(label: string, input: HTMLInputElement, tooltip = 
   row.append(labelCol, inputCol);
 
   if (tooltip !== "") tip(input, tooltip);
+
   return row;
 }
 

@@ -1,10 +1,9 @@
 type JQuery = { tipTip(opts: object): JQuery; off(events: string): JQuery };
 
-export const jq = (unsafeWindow as unknown as { $: (el: Element) => JQuery }).$;
-
 export type ButtonColor = "blue" | "red" | "green";
-export type GridCol = `col-xs-${number}` | `col-xs-offset-${number}`;
 export type TipPosition = "top" | "bottom" | "left" | "right";
+
+export const jq = (unsafeWindow as unknown as { $: (el: Element) => JQuery }).$;
 
 export const TIP_DEFAULTS = {
   maxWidth: "500px",
@@ -18,13 +17,12 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   classes?: string,
 ): HTMLElementTagNameMap[K];
+
 export function el(tag: string, classes?: string): HTMLElement;
+
 export function el(tag: string, classes = ""): HTMLElement {
   const e = document.createElement(tag);
-  if (classes !== "") {
-    e.className = classes;
-  }
-
+  if (classes !== "") e.className = classes;
   return e;
 }
 
@@ -35,10 +33,15 @@ export function faIcon(classes: string): HTMLElement {
   return i;
 }
 
+export function button(color: ButtonColor): HTMLAnchorElement {
+  const a = el("a");
+  a.href = "#";
+  a.className = `button ${color}`;
+  return a;
+}
+
 export function tip(target: Element, content: string, position: TipPosition = "bottom"): void {
-  if (content !== "") {
-    jq(target).tipTip({ ...TIP_DEFAULTS, defaultPosition: position, content });
-  }
+  if (content !== "") jq(target).tipTip({ ...TIP_DEFAULTS, defaultPosition: position, content });
 }
 
 export function waitForElement(selector: string, timeout = 5000): Promise<Element> {
