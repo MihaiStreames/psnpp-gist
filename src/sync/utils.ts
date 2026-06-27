@@ -1,4 +1,4 @@
-import type { IList } from "./types.ts";
+import type { IList } from "../types.ts";
 
 export function debounce<T extends unknown[]>(
   fn: (...args: T) => Promise<void> | void,

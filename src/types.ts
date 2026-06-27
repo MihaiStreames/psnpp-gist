@@ -1,3 +1,6 @@
+export type TGistRegistry = Record<string, string | null>; // "gistId:uuid" -> localListId | null (null = not yet created locally)
+export type TSyncStatus = "syncing" | "synced" | "error";
+
 export interface IGame {
   id: string;
   scrapetime: number;
@@ -41,4 +44,29 @@ export interface IList {
   note: string;
   url?: string;
   games: IGame[];
+}
+
+export interface IGistEntry {
+  id: string;
+  files: string[];
+  readOnly?: boolean;
+}
+
+export interface IGistConfig {
+  token: string;
+  gists: IGistEntry[];
+}
+
+export type GistConfigState =
+  | { status: "none" }
+  | { status: "partial"; message: string }
+  | { status: "ok"; config: IGistConfig };
+
+export interface SyncState {
+  config: IGistConfig | null;
+  registry: TGistRegistry;
+  cachedManifest: Record<string, Record<string, string>>;
+  lastPulledAt: Record<string, string>;
+  suppressSync: boolean;
+  updateStatus: (status: TSyncStatus, detail?: string) => void;
 }
