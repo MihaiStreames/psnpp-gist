@@ -2,7 +2,13 @@
 
 All notable changes to `psnpp-gist`.
 
-## [0.2.0] - 2026-06-22
+## [0.2.1] - 2026-06-27
+
+### Fixed
+
+- Cloud icon now hides on untracked lists (issue #10)
+
+## [0.2.0] - 2026-06-26
 
 ### Added
 

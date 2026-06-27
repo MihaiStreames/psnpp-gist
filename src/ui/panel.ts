@@ -1,5 +1,20 @@
 import { el, tip } from "./dom.ts";
 
+export function makeInput(value: string, validate?: (v: string) => boolean): HTMLInputElement {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = value;
+
+  if (validate !== undefined) {
+    input.addEventListener("input", () => {
+      const v = input.value.trim();
+      input.style.borderColor = v === "" ? "" : validate(v) ? "#e3e3e6" : "#ffb6c1";
+    });
+  }
+
+  return input;
+}
+
 export function panelSection(title: string, ...children: HTMLElement[]): HTMLElement {
   const h3 = el("h3");
   h3.textContent = title;

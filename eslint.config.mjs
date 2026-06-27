@@ -16,7 +16,7 @@ export default tseslint.config(
       // disable base rules superseded by ts versions
       "no-unused-vars": "off",
 
-      // typescript overrides - additions not covered by presets
+      // typescript overrides (not covered by presets)
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },

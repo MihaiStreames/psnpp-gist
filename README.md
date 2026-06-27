@@ -68,9 +68,9 @@ Changes push automatically after you save. On page load, the script pulls the la
 
 Sync activity is logged to the browser console under `[psnpp-gist]`.
 
-## Upgrading from `v0.1.x`
+### Upgrading from `v0.1.x`
 
-`v0.2.0` changed the storage format. After updating, re-add your Gist in settings -- your lists are still there, just the config needs a refresh.
+`v0.2.0` changed the storage format. After updating, make sure to add your Gist back in settings. Your lists will still be there, the config needs a refresh.
 
 ## Bugs
 

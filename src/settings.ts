@@ -1,29 +1,14 @@
 import { fetchManifest } from "./api.ts";
 import { SETTINGS_KEY } from "./constants.ts";
-import { button, el, faIcon, tip } from "./dom.ts";
-import { panelCheckboxRow, panelInputRow, panelSection } from "./panel.ts";
-import type { GistConfig, GistEntry } from "./storage.ts";
+import { button, el, faIcon, tip } from "./ui/dom.ts";
+import { panelCheckboxRow, panelInputRow, panelSection, makeInput } from "./ui/panel.ts";
 import { getListsFromStorage, onStorageSet } from "./storage.ts";
+import type { IList, IGistEntry, IGistConfig } from "./types.ts";
 
 const PAT_RE = /^(ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82})$/;
 const GIST_ID_RE = /^[a-f0-9]{20,32}$/;
 
-function makeInput(value: string, validate?: (v: string) => boolean): HTMLInputElement {
-  const input = document.createElement("input");
-  input.type = "text";
-  input.value = value;
-
-  if (validate !== undefined) {
-    input.addEventListener("input", () => {
-      const v = input.value.trim();
-      input.style.borderColor = v === "" ? "" : validate(v) ? "#e3e3e6" : "#ffb6c1";
-    });
-  }
-
-  return input;
-}
-
-function readStoredConfig(): { token: string; gists: GistEntry[] } {
+function readStoredConfig(): { token: string; gists: IGistEntry[] } {
   const raw = localStorage.getItem(SETTINGS_KEY);
   if (raw === null) return { token: "", gists: [] };
 
@@ -31,24 +16,24 @@ function readStoredConfig(): { token: string; gists: GistEntry[] } {
     const s = JSON.parse(raw) as Record<string, unknown>;
     return {
       token: (s["gistToken"] as string | undefined) ?? "",
-      gists: (s["gistEntries"] as GistEntry[] | undefined) ?? [],
+      gists: (s["gistEntries"] as IGistEntry[] | undefined) ?? [],
     };
   } catch {
     return { token: "", gists: [] };
   }
 }
 
-interface GistBlock {
+interface IGistBlock {
   el: HTMLElement;
-  read: () => GistEntry;
+  read: () => IGistEntry;
 }
 
 function buildGistBlock(
-  entry: GistEntry,
+  entry: IGistEntry,
   manifest: Record<string, string>,
+  allLists: IList[],
   onRemove: () => void,
-): GistBlock {
-  const allLists = getListsFromStorage();
+): IGistBlock {
   const localOnlyLists = allLists.filter(
     l => (l.url === undefined || l.url === "") && !Object.keys(manifest).includes(l.id),
   );
@@ -100,28 +85,47 @@ function buildGistBlock(
   };
 }
 
-function buildSection(stored: { token: string; gists: GistEntry[] }): {
+function removeGistBlock(blocks: IGistBlock[], block: IGistBlock): void {
+  const idx = blocks.indexOf(block);
+  if (idx !== -1) {
+    block.el.remove();
+    blocks.splice(idx, 1);
+  }
+}
+
+function addGist(
+  id: string,
+  manifest: Record<string, string>,
+  allLists: IList[],
+  gistBlocks: IGistBlock[],
+  gistContainer: HTMLElement,
+): void {
+  const entry: IGistEntry = {
+    id,
+    files: Object.keys(manifest),
+  };
+  const block = buildGistBlock(entry, manifest, allLists, () => {
+    removeGistBlock(gistBlocks, block);
+  });
+  gistBlocks.push(block);
+  gistContainer.appendChild(block.el);
+}
+
+function buildSection(stored: { token: string; gists: IGistEntry[] }): {
   el: HTMLElement;
-  read: () => GistConfig;
+  read: () => IGistConfig;
 } {
   const tokenInput = makeInput(stored.token, v => PAT_RE.test(v));
   const addIdInput = makeInput("", v => GIST_ID_RE.test(v));
 
   const gistContainer = el("div");
-  const gistBlocks: GistBlock[] = [];
-
-  function removeGistBlock(block: GistBlock): void {
-    const idx = gistBlocks.indexOf(block);
-    if (idx !== -1) {
-      block.el.remove();
-      gistBlocks.splice(idx, 1);
-    }
-  }
+  const gistBlocks: IGistBlock[] = [];
+  const allLists = getListsFromStorage();
 
   // render existing gist entries (with empty manifests until fetched)
   for (const entry of stored.gists) {
-    const block = buildGistBlock(entry, {}, () => {
-      removeGistBlock(block);
+    const block = buildGistBlock(entry, {}, allLists, () => {
+      removeGistBlock(gistBlocks, block);
     });
     gistBlocks.push(block);
     gistContainer.appendChild(block.el);
@@ -178,7 +182,7 @@ function buildSection(stored: { token: string; gists: GistEntry[] }): {
 
     void fetchManifest(id, token).then(
       ({ manifest }) => {
-        addGist(id, manifest ?? {});
+        addGist(id, manifest ?? {}, allLists, gistBlocks, gistContainer);
         addIdInput.value = "";
         statusMsg.textContent = "";
       },
@@ -188,18 +192,6 @@ function buildSection(stored: { token: string; gists: GistEntry[] }): {
       },
     );
   });
-
-  function addGist(id: string, manifest: Record<string, string>): void {
-    const entry: GistEntry = {
-      id,
-      files: Object.keys(manifest),
-    };
-    const block = buildGistBlock(entry, manifest, () => {
-      removeGistBlock(block);
-    });
-    gistBlocks.push(block);
-    gistContainer.appendChild(block.el);
-  }
 
   const section = panelSection(
     "Gist Sync",
@@ -220,7 +212,7 @@ function buildSection(stored: { token: string; gists: GistEntry[] }): {
 }
 
 export function setupSettings(): void {
-  let reader: (() => GistConfig) | null = null;
+  let reader: (() => IGistConfig) | null = null;
 
   // merge our fields into psnpp-settings whenever PSNP+ saves
   onStorageSet(SETTINGS_KEY, value => {

@@ -3,7 +3,7 @@ import type { IList } from "./types.ts";
 
 const GIST_API = "https://api.github.com/gists";
 
-export type GistError =
+type GistError =
   | { kind: "unauthorized" }
   | { kind: "forbidden" }
   | { kind: "not-found" }
@@ -26,6 +26,17 @@ export class GistApiError extends Error {
         return `GitHub API error (${e.status}). Try again later.`;
     }
   }
+}
+
+interface IGistResponse {
+  files: Record<string, { content: string } | undefined>;
+  updated_at: string;
+}
+
+interface IManifestResult {
+  manifest: Record<string, string> | null;
+  scopeWarning: string | null;
+  gistUpdatedAt: string;
 }
 
 function parseResponseHeader(headers: string, name: string): string {
@@ -61,12 +72,7 @@ function toGistError(status: number): GistError {
   return { kind: "http-error", status };
 }
 
-interface GistResponse {
-  files: Record<string, { content: string } | undefined>;
-  updated_at: string;
-}
-
-function getGist(gistId: string, token: string): Promise<{ gist: GistResponse; headers: string }> {
+function getGist(gistId: string, token: string): Promise<{ gist: IGistResponse; headers: string }> {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
       method: "GET",
@@ -80,7 +86,7 @@ function getGist(gistId: string, token: string): Promise<{ gist: GistResponse; h
         }
 
         resolve({
-          gist: JSON.parse(res.responseText) as GistResponse,
+          gist: JSON.parse(res.responseText) as IGistResponse,
           headers: res.responseHeaders,
         });
       },
@@ -123,13 +129,7 @@ function patchGist(
   });
 }
 
-export interface ManifestResult {
-  manifest: Record<string, string> | null;
-  scopeWarning: string | null;
-  gistUpdatedAt: string;
-}
-
-export async function fetchManifest(gistId: string, token: string): Promise<ManifestResult> {
+export async function fetchManifest(gistId: string, token: string): Promise<IManifestResult> {
   const { gist, headers } = await getGist(gistId, token);
   const scopeWarning = checkScopes(headers);
   const manifestFile = gist.files[MANIFEST_FILENAME];
