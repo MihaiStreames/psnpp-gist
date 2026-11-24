@@ -22,7 +22,7 @@ repos:
     hooks:
       - id: prettier
         additional_dependencies:
-          - prettier@3.8.3
+          - prettier@3.10.1
           - prettier-plugin-packagejson@3.0.2
         types_or: [ts, javascript, json, yaml]
         priority: 2
